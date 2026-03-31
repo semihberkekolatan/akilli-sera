@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "SensorReading": {
+      "title": "Sensor Reading",
+      "description": "Real-time data from greenhouse sensors",
+      "type": "object",
+      "properties": {
+        "temperature": { "type": "number", "description": "Temperature in Celsius" },
+        "humidity": { "type": "number", "description": "Relative humidity percentage" },
+        "light": { "type": "number", "description": "Light intensity in Lux" },
+        "soilMoisture": { "type": "number", "description": "Soil moisture percentage" },
+        "nitrogen": { "type": "number", "description": "Nitrogen level in ppm" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Time of reading" }
+      },
+      "required": ["temperature", "humidity", "light", "soilMoisture", "nitrogen", "timestamp"]
+    },
+    "ActuatorControl": {
+      "title": "Actuator Control",
+      "description": "Control states for greenhouse systems",
+      "type": "object",
+      "properties": {
+        "irrigation": { "type": "boolean", "description": "Watering system state" },
+        "lighting": { "type": "boolean", "description": "Artificial lighting state" },
+        "fan": { "type": "boolean", "description": "Ventilation fan state" },
+        "heater": { "type": "boolean", "description": "Heating system state" },
+        "fertilizer": { "type": "boolean", "description": "Fertilization system state" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last control update" }
+      },
+      "required": ["irrigation", "lighting", "fan", "heater", "fertilizer", "updatedAt"]
+    },
+    "Alert": {
+      "title": "Alert",
+      "description": "Critical status notifications",
+      "type": "object",
+      "properties": {
+        "message": { "type": "string", "description": "Alert message" },
+        "severity": { "type": "string", "enum": ["low", "medium", "high"], "description": "Severity level" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Time of alert" },
+        "read": { "type": "boolean", "description": "Whether the alert has been seen" }
+      },
+      "required": ["message", "severity", "timestamp", "read"]
+    }
+  },
+  "firestore": {
+    "/greenhouses/{greenhouseId}/readings": {
+      "schema": "SensorReading",
+      "description": "Historical sensor data for a greenhouse"
+    },
+    "/greenhouses/{greenhouseId}/controls/current": {
+      "schema": "ActuatorControl",
+      "description": "Current control states for a greenhouse"
+    },
+    "/greenhouses/{greenhouseId}/alerts": {
+      "schema": "Alert",
+      "description": "Notifications for a greenhouse"
+    }
+  }
+}

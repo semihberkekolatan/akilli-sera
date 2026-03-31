@@ -1,0 +1,5 @@
+{
+  "name": "Akıllı Sera Takip Sistemi",
+  "description": "Sera sensörlerini izlemek ve aktüatörleri kontrol etmek için gerçek zamanlı panel.",
+  "requestFramePermissions": []
+}

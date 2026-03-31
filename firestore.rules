@@ -1,0 +1,134 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: greenhouses/{greenhouseId}/readings
+// Document ID: auto-generated
+// Fields:
+//   - temperature: number (required) - Temperature in Celsius
+//   - humidity: number (required) - Relative humidity percentage
+//   - light: number (required) - Light intensity in Lux
+//   - soilMoisture: number (required) - Soil moisture percentage
+//   - nitrogen: number (required) - Nitrogen level in ppm
+//   - timestamp: timestamp (required) - Time of reading
+//
+// Collection: greenhouses/{greenhouseId}/controls
+// Document ID: current
+// Fields:
+//   - irrigation: boolean (required) - Watering system state
+//   - lighting: boolean (required) - Artificial lighting state
+//   - fan: boolean (required) - Ventilation fan state
+//   - heater: boolean (required) - Heating system state
+//   - fertilizer: boolean (required) - Fertilization system state
+//   - updatedAt: timestamp (required) - Last control update
+//
+// Collection: greenhouses/{greenhouseId}/alerts
+// Document ID: auto-generated
+// Fields:
+//   - message: string (required, 1-200 chars) - Alert message
+//   - severity: string (required, enum: ['low', 'medium', 'high']) - Severity level
+//   - timestamp: timestamp (required) - Time of alert
+//   - read: boolean (required) - Whether the alert has been seen
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "semihberkekolatan@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isOwner(greenhouseId) {
+      return isAuthenticated() && (
+        greenhouseId == request.auth.uid || 
+        isAdmin() ||
+        exists(/databases/$(database)/documents/greenhouses/$(greenhouseId)/members/$(request.auth.uid))
+      );
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidReading(data) {
+      return hasRequiredFields(['temperature', 'humidity', 'light', 'soilMoisture', 'nitrogen', 'timestamp']) &&
+             hasOnlyAllowedFields(['temperature', 'humidity', 'light', 'soilMoisture', 'nitrogen', 'timestamp']) &&
+             data.temperature is number &&
+             data.humidity is number &&
+             data.light is number &&
+             data.soilMoisture is number &&
+             data.nitrogen is number &&
+             data.timestamp is timestamp;
+    }
+
+    function isValidControl(data) {
+      return hasRequiredFields(['irrigation', 'lighting', 'fan', 'heater', 'fertilizer', 'updatedAt']) &&
+             hasOnlyAllowedFields(['irrigation', 'lighting', 'fan', 'heater', 'fertilizer', 'updatedAt']) &&
+             data.irrigation is bool &&
+             data.lighting is bool &&
+             data.fan is bool &&
+             data.heater is bool &&
+             data.fertilizer is bool &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidAlert(data) {
+      return hasRequiredFields(['message', 'severity', 'timestamp', 'read']) &&
+             hasOnlyAllowedFields(['message', 'severity', 'timestamp', 'read']) &&
+             data.message is string && data.message.size() > 0 && data.message.size() <= 200 &&
+             data.severity in ['low', 'medium', 'high'] &&
+             data.timestamp is timestamp &&
+             data.read is bool;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /greenhouses/{greenhouseId} {
+      allow read: if isOwner(greenhouseId);
+      
+      match /readings/{readingId} {
+        allow read: if isOwner(greenhouseId);
+        allow create: if isOwner(greenhouseId) && isValidReading(request.resource.data);
+      }
+
+      match /controls/{controlId} {
+        allow read: if isOwner(greenhouseId);
+        allow write: if isOwner(greenhouseId) && isValidControl(request.resource.data);
+      }
+
+      match /alerts/{alertId} {
+        allow read: if isOwner(greenhouseId);
+        allow create: if isOwner(greenhouseId) && isValidAlert(request.resource.data);
+        allow update: if isOwner(greenhouseId) && isValidAlert(request.resource.data) && 
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      }
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+  }
+}
